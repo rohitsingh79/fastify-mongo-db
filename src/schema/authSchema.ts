@@ -1,9 +1,10 @@
 export const authBodySchema = {
   type: "object",
-  required: ["username", "password"],
+  required: ["email", "password"],
   properties: {
-    username: { type: "string", format: "email" },
+    email: { type: "string", format: "email" },
     password: { type: "string" },
+    username: { type: "string" },
   },
 };
 

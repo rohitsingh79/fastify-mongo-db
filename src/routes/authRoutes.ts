@@ -1,10 +1,14 @@
 import { FastifyPluginAsync, FastifyRequest } from "Fastify";
 import { authBodySchema } from "../schema/authSchema";
+import { ObjectId } from "@fastify/mongodb";
+import bcrypt from "bcrypt";
 
 interface RegisterRequestBody {
-  username: string;
+  email: string;
   password: string;
+  username: string;
 }
+
 const authRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post("/register", {
     schema: {
@@ -15,6 +19,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
           properties: {
             message: { type: "string" },
             userId: { type: "string" },
+            username: { type: "string" },
           },
         },
         400: {
@@ -37,18 +42,25 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       request: FastifyRequest<{ Body: RegisterRequestBody }>,
       reply
     ) => {
-      const { username, password } = request.body;
+      const { email, password, username } = request.body;
       const userCollection = fastify?.mongo?.db?.collection("users");
       if (!userCollection) {
         reply.status(500).send({
           message: "Database connection error",
         });
       }
-      const result = await userCollection?.insertOne({ username, password });
+      const hashedPassword = await bcrypt.hash(password, 10);
+      console.log("password", hashedPassword);
+      const result = await userCollection?.insertOne({
+        email,
+        password: hashedPassword,
+        username,
+      });
       if (result?.acknowledged) {
         reply.code(200).send({
           message: "user is registered successfully",
           userId: result.insertedId.toString(),
+          username: username,
         });
       }
     },
@@ -83,17 +95,18 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       req: FastifyRequest<{ Body: RegisterRequestBody }>,
       reply
     ) => {
-      const { username, password } = req.body;
+      const { email, password } = req.body;
       const userCollections = fastify?.mongo?.db?.collection("users");
       if (!userCollections) {
         reply.code(500).send({ message: "user DB does not exist" });
       }
 
-      const user = await userCollections?.findOne({ username });
+      const user = await userCollections?.findOne({ email });
 
-      if (user && password === user.password) {
+      const hashedPassword = await bcrypt.compare(password, user?.password);
+
+      if (user && hashedPassword) {
         // need to send json web token
-
         const token = fastify.jwt.sign({
           userId: user._id,
           username: user.username,
@@ -115,6 +128,21 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       const userCollection = fastify.mongo.db?.collection("users");
       const allUsers = await userCollection?.find({}).toArray();
       res.code(200).send(allUsers);
+    },
+  });
+
+  fastify.delete("/Users/Delete/:id", {
+    handler: async (req: FastifyRequest<{ Params: { id: string } }>, res) => {
+      const { id } = req.params;
+      const userCollection = fastify.mongo.db?.collection("users");
+      const deleteResponse = await userCollection?.deleteOne({
+        _id: new ObjectId(id),
+      });
+      if (deleteResponse?.acknowledged) {
+        res.code(200).send({
+          message: `${id} is deleted successfully ${deleteResponse.deletedCount}`,
+        });
+      }
     },
   });
 };
