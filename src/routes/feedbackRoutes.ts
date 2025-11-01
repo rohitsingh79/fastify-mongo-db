@@ -93,8 +93,49 @@ export const feedbackRoutes: FastifyPluginAsync = async (fastify) => {
     },
   });
 
-  // get the feed back based on timestamp , filetring
+  // endpoint to fetch beedback with pagination , sort by field and order
   fastify.get("/feedback/:resourceId", {
+    schema: {
+      querystring: {
+        type: "object",
+        properties: {
+          page: { type: "integer", minimum: 1, default: 1 },
+          sortBy: { type: "string", enum: ["date", "rating"], default: "date" },
+          orderBy: { type: "string", enum: ["asc", "dsc"], default: "asc" },
+        },
+      },
+      params: {
+        type: "object",
+        properties: {
+          resourceId: { type: "string" },
+        },
+        required: ["resourceId"],
+      },
+      response: {
+        200: {
+          type: "object",
+          properties: {
+            averageRating: { type: "number" },
+            totalRatings: { type: "number" },
+            recentFeedbacks: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  comment: { type: "string" },
+                  rating: { type: "number" },
+                  createdAt: { type: "string", format: "date-time" },
+                },
+              },
+            },
+          },
+        },
+        500: {},
+      },
+      tags: ["Feedback"],
+      summary:
+        "Fetch average rating, total ratings, and recent comments for a resource",
+    },
     handler: async (req, res) => {
       const { resourceId } = req.params as { resourceId: any };
       const { page, sortBy, orderBy } = req.query as {
@@ -104,23 +145,42 @@ export const feedbackRoutes: FastifyPluginAsync = async (fastify) => {
       };
       const pageSize = 2;
       const skip = (page - 1) * pageSize;
-      const sortOrder = orderBy === "asc" ? 1 : -1;
+      const sortOrder = orderBy == "asc" ? 1 : -1;
+      const sortedField = sortBy === "date" ? "createdAt" : "rating";
 
-      const collection = fastify.mongo.db?.collection("feedback");
+      const feedBackCollection = fastify.mongo.db?.collection("feedback");
+      if (!feedBackCollection) {
+        return res.status(500).send({ message: "MongoDB not connected" });
+      }
 
-      console.log("feedback array", resourceId);
-
-      const feedbacks = await collection
+      const feedbacks = await feedBackCollection
         ?.find({
           resourceId,
           comment: { $exists: true },
         })
-        .sort({ createdAt: sortOrder })
+        .sort({ [sortedField]: sortOrder })
         .skip(skip)
         .limit(pageSize)
+        .project({ rating: 1, comment: 1, _id: 0, createdAt: 1 })
         .toArray();
 
-      res.code(200).send(feedbacks);
+      const avgResults = await feedBackCollection
+        .aggregate([
+          { $match: { resourceId } },
+          { $group: { _id: resourceId, avgRating: { $avg: `$rating` } } },
+        ])
+        .toArray();
+
+      const averageRating = avgResults[0]?.avgRating || 0;
+      const totalRatings = await feedBackCollection.countDocuments({
+        resourceId,
+      });
+
+      res.code(200).send({
+        averageRating,
+        totalRatings,
+        recentFeedbacks: feedbacks,
+      });
     },
   });
 };
