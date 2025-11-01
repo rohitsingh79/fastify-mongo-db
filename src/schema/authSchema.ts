@@ -8,28 +8,44 @@ export const authBodySchema = {
   },
 };
 
-export const feedBackBodySchema = {
-  type: "object",
-  required: ["resourceId", "rating"],
-  properties: {
-    resourceId: { type: "string" },
-    rating: { type: "integer", minimum: 1, maximum: 5 },
-    userId: { type: "string" },
-    comment: { type: "string" },
-  },
-};
-
-export const feedBackBodyResponseSchema = {
+export const authLoginBodyResponseSchema = {
   200: {
     type: "object",
     properties: {
-      resourceId: { type: "string" },
-      userID: { type: "string" },
-      comment: { type: "string" },
-      rating: { type: "integer" },
+      token: { type: "string" },
+      userId: { type: "string" },
     },
   },
   400: {
+    type: "object",
+    properties: {
+      message: { type: "string" },
+    },
+  },
+  500: {
+    type: "object",
+    properties: {
+      message: { type: "string" },
+    },
+  },
+};
+
+export const authRegisterResponseSchema = {
+  200: {
+    type: "object",
+    properties: {
+      message: { type: "string" },
+      userId: { type: "string" },
+      username: { type: "string" },
+    },
+  },
+  400: {
+    type: "object",
+    properties: {
+      message: { type: "string" },
+    },
+  },
+  500: {
     type: "object",
     properties: {
       message: { type: "string" },

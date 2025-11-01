@@ -1,5 +1,9 @@
 import { FastifyPluginAsync, FastifyRequest } from "Fastify";
-import { authBodySchema } from "../schema/authSchema";
+import {
+  authLoginBodyResponseSchema,
+  authBodySchema,
+  authRegisterResponseSchema,
+} from "../schema/authSchema";
 import { ObjectId } from "@fastify/mongodb";
 import bcrypt from "bcrypt";
 
@@ -13,30 +17,9 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post("/register", {
     schema: {
       body: authBodySchema,
-      response: {
-        200: {
-          type: "object",
-          properties: {
-            message: { type: "string" },
-            userId: { type: "string" },
-            username: { type: "string" },
-          },
-        },
-        400: {
-          type: "object",
-          properties: {
-            message: { type: "string" },
-          },
-        },
-        500: {
-          type: "object",
-          properties: {
-            message: { type: "string" },
-          },
-        },
-      },
+      response: authRegisterResponseSchema,
       tags: ["Auth"],
-      summar: "Register a new user with email and password",
+      summary: "Register a new user with email and password",
     },
     handler: async (
       request: FastifyRequest<{ Body: RegisterRequestBody }>,
@@ -50,7 +33,6 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
         });
       }
       const hashedPassword = await bcrypt.hash(password, 10);
-      console.log("password", hashedPassword);
       const result = await userCollection?.insertOne({
         email,
         password: hashedPassword,
@@ -69,27 +51,9 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post("/login", {
     schema: {
       body: authBodySchema,
-      response: {
-        200: {
-          type: "object",
-          properties: {
-            token: { type: "string" },
-            userId: { type: "string" },
-          },
-        },
-        400: {
-          type: "object",
-          properties: {
-            message: { type: "string" },
-          },
-        },
-        500: {
-          type: "object",
-          properties: {
-            message: { type: "string" },
-          },
-        },
-      },
+      response: authLoginBodyResponseSchema,
+      tags: ["Auth"],
+      summary: "Login and receive JWT token",
     },
     handler: async (
       req: FastifyRequest<{ Body: RegisterRequestBody }>,
@@ -115,15 +79,17 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
           token,
           userId: user._id,
         });
-      }
-
-      if (password !== user?.password) {
+      } else {
         reply.code(400).send({ message: "password is invalid" });
       }
     },
   });
 
   fastify.get("/Users/ALL", {
+    schema: {
+      tags: ["Users"],
+      summary: "Get All Registered Users",
+    },
     handler: async (req, res) => {
       const userCollection = fastify.mongo.db?.collection("users");
       const allUsers = await userCollection?.find({}).toArray();
@@ -131,7 +97,11 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     },
   });
 
-  fastify.delete("/Users/Delete/:id", {
+  fastify.delete("/Users/:id", {
+    schema: {
+      tags: ["Users"],
+      summary: "Delete a user entry using id",
+    },
     handler: async (req: FastifyRequest<{ Params: { id: string } }>, res) => {
       const { id } = req.params;
       const userCollection = fastify.mongo.db?.collection("users");

@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import {
   feedBackBodyResponseSchema,
   feedBackBodySchema,
-} from "../schema/authSchema";
+} from "../schema/feedBackSchema";
 import { authorisationMiddleWare } from "../utils/authorisation";
 
 interface FeedbackRequestBody {
@@ -24,6 +24,10 @@ export const feedbackRoutes: FastifyPluginAsync = async (fastify) => {
     schema: {
       body: feedBackBodySchema,
       response: feedBackBodyResponseSchema,
+      tags: ["Feedback"],
+      summary:
+        "Allow users to share their experience by posting a star rating and optional comment for any resource.",
+      security: [{ bearerAuth: [] }], // tells Swagger to use the defined scheme
     },
     preValidation: authorisationMiddleWare,
     handler: async (
@@ -72,6 +76,10 @@ export const feedbackRoutes: FastifyPluginAsync = async (fastify) => {
 
   // get all the feedbacks
   fastify.get("/feedback/ALL", {
+    schema: {
+      tags: ["Feedback"],
+      summary: "Get all the feedbacks",
+    },
     handler: async (req, res) => {
       const feedbackCollection = fastify.mongo.db?.collection("feedback");
       const feedbacks = await feedbackCollection?.find({}).toArray();
@@ -80,7 +88,12 @@ export const feedbackRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // delete the feedbacks
-  fastify.delete("/feedback/delete/:resourceId", {
+  fastify.delete("/feedback/:resourceId", {
+    schema: {
+      tags: ["Feedback"],
+      summary: "Delete a resource by resource id",
+    },
+
     handler: async (req, res) => {
       const feedBackCollection = fastify.mongo.db?.collection("feedback");
       const { resourceId } = req.params as { resourceId: string };
