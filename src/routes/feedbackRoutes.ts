@@ -36,12 +36,18 @@ export const feedbackRoutes: FastifyPluginAsync = async (fastify) => {
     ) => {
       //1. if authenticated check the database with the user Id and resource id combination
       const userID = (req.user as { userId: string })?.userId;
+
+      const isGuestUser = userID.includes("Guest");
+
       const { resourceId, comment, rating, userId } = req.body;
       const feedbackCollection = fastify.mongo.db?.collection("feedback");
       const usersCollection = fastify.mongo.db?.collection("users");
-      const getUser = await usersCollection?.findOne({
-        _id: new ObjectId(userID),
-      });
+      let getUser;
+      if (!isGuestUser) {
+        getUser = await usersCollection?.findOne({
+          _id: new ObjectId(userID),
+        });
+      }
 
       const getDocumentWithUserResourceId = await feedbackCollection?.findOne({
         userID,
@@ -54,7 +60,7 @@ export const feedbackRoutes: FastifyPluginAsync = async (fastify) => {
           comment,
           rating,
           resourceId,
-          userName: getUser?.username,
+          userName: `${!isGuestUser} ? ${getUser?.username} : ${userID}`,
           createdAt: new Date(),
         });
         if (insertFeedback?.acknowledged) {
@@ -66,9 +72,10 @@ export const feedbackRoutes: FastifyPluginAsync = async (fastify) => {
           });
         }
       } else {
-        console.log("getUserName", getUser);
         res.code(400).send({
-          message: `rating for this resource id ${resourceId} is already done by ${getUser}`,
+          message: `rating for this resource id ${resourceId} is already done by ${
+            !isGuestUser ? getUser?.userName : userID
+          }`,
         });
       }
     },
@@ -143,7 +150,12 @@ export const feedbackRoutes: FastifyPluginAsync = async (fastify) => {
             },
           },
         },
-        500: {},
+        500: {
+          type: "object",
+          properties: {
+            message: { type: "string" },
+          },
+        },
       },
       tags: ["Feedback"],
       summary:
@@ -171,10 +183,10 @@ export const feedbackRoutes: FastifyPluginAsync = async (fastify) => {
           resourceId,
           comment: { $exists: true },
         })
-        .sort({ [sortedField]: sortOrder })
+        .sort({ [sortedField]: sortOrder, createdAt: 1 })
         .skip(skip)
         .limit(pageSize)
-        .project({ rating: 1, comment: 1, _id: 0, createdAt: 1 })
+        .project({ rating: 1, comment: 1, _id: 0, createdAt: -1 })
         .toArray();
 
       const avgResults = await feedBackCollection
