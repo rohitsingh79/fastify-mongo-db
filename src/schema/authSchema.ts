@@ -39,6 +39,19 @@ export const authRegisterResponseSchema = {
       username: { type: "string" },
     },
   },
+  201: {
+    type: "object",
+    properties: {
+      message: { type: "string" },
+      userId: { type: "string" },
+    },
+  },
+  409: {
+    type: "object",
+    properties: {
+      message: { type: "string" },
+    },
+  },
   400: {
     type: "object",
     properties: {

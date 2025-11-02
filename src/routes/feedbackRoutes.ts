@@ -29,7 +29,7 @@ export const feedbackRoutes: FastifyPluginAsync = async (fastify) => {
         "Allow users to share their experience by posting a star rating and optional comment for any resource.",
       security: [{ bearerAuth: [] }], // tells Swagger to use the defined scheme
     },
-    preValidation: authorisationMiddleWare,
+    preValidation: [fastify.authenticate],
     handler: async (
       req: FastifyRequest<{ Body: FeedbackRequestBody }>,
       res

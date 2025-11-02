@@ -29,8 +29,13 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       const userCollection = fastify?.mongo?.db?.collection("users");
       if (!userCollection) {
         reply.status(500).send({
-          message: "Database connection error",
+          message: "Database connection error: users collection not found",
         });
+      }
+
+      const existing = await userCollection?.findOne({ email });
+      if (existing) {
+        reply.code(409).send({ message: "User already exists" });
       }
       const hashedPassword = await bcrypt.hash(password, 10);
       const result = await userCollection?.insertOne({
