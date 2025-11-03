@@ -6,6 +6,12 @@ import {
 } from "../schema/feedBackSchema";
 import { authorisationMiddleWare } from "../utils/authorisation";
 
+declare module "fastify" {
+  interface FastifyInstance {
+    authenticate: typeof authorisationMiddleWare;
+  }
+}
+
 interface FeedbackRequestBody {
   resourceId: string;
   rating: number;
@@ -18,7 +24,6 @@ interface FeedbackQueryParam {
 }
 
 export const feedbackRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.decorate("authenticate", authorisationMiddleWare);
   // post a feedback
   fastify.post("/feedback", {
     schema: {
