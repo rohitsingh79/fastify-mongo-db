@@ -28,14 +28,14 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       const { email, password, username } = request.body;
       const userCollection = fastify?.mongo?.db?.collection("users");
       if (!userCollection) {
-        reply.status(500).send({
+        return reply.code(500).send({
           message: "Database connection error: users collection not found",
         });
       }
 
       const existing = await userCollection?.findOne({ email });
       if (existing) {
-        reply.code(409).send({ message: "User already exists" });
+        return reply.code(409).send({ message: "User already exists" });
       }
       const hashedPassword = await bcrypt.hash(password, 10);
       const result = await userCollection?.insertOne({
@@ -44,7 +44,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
         username,
       });
       if (result?.acknowledged) {
-        reply.code(200).send({
+        return reply.code(201).send({
           message: "user is registered successfully",
           userId: result.insertedId.toString(),
           username: username,
@@ -67,25 +67,29 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       const { email, password } = req.body;
       const userCollections = fastify?.mongo?.db?.collection("users");
       if (!userCollections) {
-        reply.code(500).send({ message: "user DB does not exist" });
+        return reply.code(500).send({ message: "Database connection error" });
       }
 
       const user = await userCollections?.findOne({ email });
 
-      const hashedPassword = await bcrypt.compare(password, user?.password);
+      if (!user) {
+        return reply.code(400).send({ message: "Invalid credentials" });
+      }
 
-      if (user && hashedPassword) {
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+
+      if (isPasswordValid) {
         // need to send json web token
         const token = fastify.jwt.sign({
           userId: user._id,
           username: user.username,
         });
-        reply.code(200).send({
+        return reply.code(200).send({
           token,
           userId: user._id,
         });
       } else {
-        reply.code(400).send({ message: "password is invalid" });
+        return reply.code(400).send({ message: "Invalid credentials" });
       }
     },
   });

@@ -74,7 +74,7 @@ export const feedbackRoutes: FastifyPluginAsync = async (fastify) => {
       } else {
         res.code(400).send({
           message: `rating for this resource id ${resourceId} is already done by ${
-            !isGuestUser ? getUser?.userName : userID
+            !isGuestUser ? getUser?.username : userID
           }`,
         });
       }

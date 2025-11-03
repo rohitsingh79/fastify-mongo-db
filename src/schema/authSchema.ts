@@ -44,6 +44,7 @@ export const authRegisterResponseSchema = {
     properties: {
       message: { type: "string" },
       userId: { type: "string" },
+      username: { type: "string" },
     },
   },
   409: {
